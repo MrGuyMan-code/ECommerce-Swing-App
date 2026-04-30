@@ -45,6 +45,7 @@ public class AdminPanel extends JFrame {
         tabbedPane.addTab("📋 View Orders", createOrdersPanel());
         tabbedPane.addTab("➕ Add Product", createAddProductPanel());
         tabbedPane.addTab("✏️ Manage Products", createManageProductsPanel());
+        tabbedPane.addTab("⚡ Process Orders", createProcessOrdersPanel());  // ← ADD THIS LINE
         tabbedPane.addTab("📁 Manage Categories", createCategoryPanel());  // ← NEW TAB
         tabbedPane.addTab("📊 Dashboard", createDashboardPanel());
         
@@ -59,13 +60,19 @@ public class AdminPanel extends JFrame {
             } else if (tabbedPane.getSelectedIndex() == 2) {
                 loadProductsForManagement();
             } else if (tabbedPane.getSelectedIndex() == 3) {
-                // Refresh category data when tab is selected
+                // Refresh process orders tab with pagination
                 Component comp = tabbedPane.getComponentAt(3);
                 if (comp instanceof JPanel) {
-                    // Refresh the category tree and table
-                    refreshCategoryData();
+                    Runnable refreshPage = (Runnable) ((JPanel) comp).getClientProperty("refreshPage");
+                    if (refreshPage != null) refreshPage.run();
                 }
             } else if (tabbedPane.getSelectedIndex() == 4) {
+                // Refresh category data
+                Component comp = tabbedPane.getComponentAt(4);
+                if (comp instanceof JPanel) {
+                    refreshCategoryData();
+                }
+            } else if (tabbedPane.getSelectedIndex() == 5) {
                 loadDashboardStats();
             }
         });
@@ -319,6 +326,438 @@ public class AdminPanel extends JFrame {
         return panel;
     }
     
+    private JPanel createProcessOrdersPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // Pagination variables for this panel
+        int[] currentPage = {0};
+        int[] pageSize = {20};  // Default 20 orders per page
+        int[] totalPages = {0};
+        int[] totalOrders = {0};
+
+        // Title and info panel
+        JPanel infoPanel = new JPanel(new BorderLayout());
+        JLabel titleLabel = new JLabel("📦 Orders Needing Processing", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        titleLabel.setForeground(new Color(255, 140, 0));
+        infoPanel.add(titleLabel, BorderLayout.NORTH);
+
+        JLabel subLabel = new JLabel("Status: pending, processing, shipped", SwingConstants.CENTER);
+        subLabel.setFont(new Font("Arial", Font.ITALIC, 12));
+        infoPanel.add(subLabel, BorderLayout.CENTER);
+        panel.add(infoPanel, BorderLayout.NORTH);
+
+        // Table for active orders
+        String[] columns = {"Order ID", "Customer", "Date", "Status", "Total (RON)", "Payment Method", "Items", "Days Old"};
+        DefaultTableModel activeOrdersModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        JTable activeOrdersTable = new JTable(activeOrdersModel);
+        activeOrdersTable.setRowHeight(25);
+        activeOrdersTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 12));
+
+        // Color rows based on status
+        activeOrdersTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value,
+                    boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                if (!isSelected) {
+                    String status = (String) table.getValueAt(row, 3);
+                    if ("pending".equals(status)) {
+                        c.setBackground(new Color(255, 200, 200)); // Light red
+                    } else if ("processing".equals(status)) {
+                        c.setBackground(new Color(255, 255, 200)); // Light yellow
+                    } else if ("shipped".equals(status)) {
+                        c.setBackground(new Color(200, 255, 200)); // Light green
+                    } else {
+                        c.setBackground(Color.WHITE);
+                    }
+                }
+                return c;
+            }
+        });
+
+        JScrollPane scrollPane = new JScrollPane(activeOrdersTable);
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        // ========== PAGINATION PANEL ==========
+        JPanel paginationPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
+        paginationPanel.setBorder(BorderFactory.createTitledBorder("Navigation"));
+
+        JButton prevButton = new JButton("◀ Previous");
+        JLabel pageInfoLabel = new JLabel("Page 0 of 0");
+        JButton nextButton = new JButton("Next ▶");
+        JLabel totalRecordsLabel = new JLabel(" | Total: 0 orders");
+
+        // Make Next as JButton for consistency
+        JButton nextBtn = new JButton("Next ▶");
+
+        // Page size selector
+        JLabel pageSizeLabel = new JLabel("Items per page:");
+        JComboBox<Integer> pageSizeCombo = new JComboBox<>(new Integer[]{10, 20, 30, 50, 100});
+        pageSizeCombo.setSelectedItem(pageSize[0]);
+        pageSizeCombo.setPreferredSize(new Dimension(60, 25));
+
+        paginationPanel.add(prevButton);
+        paginationPanel.add(pageInfoLabel);
+        paginationPanel.add(nextBtn);
+        paginationPanel.add(Box.createHorizontalStrut(20));
+        paginationPanel.add(pageSizeLabel);
+        paginationPanel.add(pageSizeCombo);
+        paginationPanel.add(totalRecordsLabel);
+
+        // Function to load page
+        Runnable loadPage = () -> {
+            int offset = currentPage[0] * pageSize[0];
+            loadActiveOrdersPaginated(activeOrdersModel, pageSize[0], offset, totalOrders, totalPages);
+
+            // Update pagination UI
+            pageInfoLabel.setText(String.format("Page %d of %d", currentPage[0] + 1, Math.max(1, totalPages[0])));
+            totalRecordsLabel.setText(String.format(" | Total: %d orders", totalOrders[0]));
+            prevButton.setEnabled(currentPage[0] > 0);
+            nextBtn.setEnabled(currentPage[0] + 1 < totalPages[0]);
+
+            // Update stats after loading page
+            updateProcessOrderStats(activeOrdersModel, panel);
+        };
+
+        // Previous button action
+        prevButton.addActionListener(e -> {
+            if (currentPage[0] > 0) {
+                currentPage[0]--;
+                loadPage.run();
+            }
+        });
+
+        // Next button action
+        nextBtn.addActionListener(e -> {
+            if (currentPage[0] + 1 < totalPages[0]) {
+                currentPage[0]++;
+                loadPage.run();
+            }
+        });
+
+        // Page size change action
+        pageSizeCombo.addActionListener(e -> {
+            pageSize[0] = (Integer) pageSizeCombo.getSelectedItem();
+            currentPage[0] = 0;  // Reset to first page
+            loadPage.run();
+        });
+
+        // ========== BUTTON PANEL ==========
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
+        buttonPanel.setBorder(BorderFactory.createTitledBorder("Actions"));
+
+        // Refresh button
+        JButton refreshBtn = new JButton("🔄 Refresh");
+        refreshBtn.setFont(new Font("Arial", Font.BOLD, 12));
+        refreshBtn.addActionListener(e -> {
+            currentPage[0] = 0;
+            loadPage.run();
+            // Also refresh regular orders tab
+            loadOrders();
+            loadDashboardStats();
+        });
+        buttonPanel.add(refreshBtn);
+
+        // Process to Delivered button
+        JButton deliverBtn = new JButton("✅ Mark as DELIVERED");
+        deliverBtn.setFont(new Font("Arial", Font.BOLD, 12));
+        deliverBtn.setBackground(new Color(50, 205, 50));
+        deliverBtn.setForeground(Color.WHITE);
+        deliverBtn.addActionListener(e -> {
+            int row = activeOrdersTable.getSelectedRow();
+            if (row >= 0) {
+                updateOrderStatusBulk(activeOrdersTable, activeOrdersModel, row, "delivered", () -> {
+                    loadPage.run();  // Reload current page after update
+                });
+            } else {
+                JOptionPane.showMessageDialog(panel, "Please select an order first!");
+            }
+        });
+        buttonPanel.add(deliverBtn);
+
+        // Process to Cancelled button
+        JButton cancelBtn = new JButton("❌ Mark as CANCELLED");
+        cancelBtn.setFont(new Font("Arial", Font.BOLD, 12));
+        cancelBtn.setBackground(new Color(255, 69, 58));
+        cancelBtn.setForeground(Color.WHITE);
+        cancelBtn.addActionListener(e -> {
+            int row = activeOrdersTable.getSelectedRow();
+            if (row >= 0) {
+                int confirm = JOptionPane.showConfirmDialog(panel,
+                    "Are you sure you want to cancel this order?\nThis will log the cancellation in audit table.",
+                    "Confirm Cancellation",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+                if (confirm == JOptionPane.YES_OPTION) {
+                    updateOrderStatusBulk(activeOrdersTable, activeOrdersModel, row, "cancelled", () -> {
+                        loadPage.run();  // Reload current page after update
+                    });
+                }
+            } else {
+                JOptionPane.showMessageDialog(panel, "Please select an order first!");
+            }
+        });
+        buttonPanel.add(cancelBtn);
+
+        // Individual status update combo
+        JPanel updatePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
+        updatePanel.add(new JLabel("Update selected to:"));
+
+        JComboBox<String> statusCombo = new JComboBox<>(new String[]{"processing", "shipped", "delivered", "cancelled"});
+        statusCombo.setPreferredSize(new Dimension(120, 25));
+        updatePanel.add(statusCombo);
+
+        JButton updateBtn = new JButton("Apply");
+        updateBtn.addActionListener(e -> {
+            int row = activeOrdersTable.getSelectedRow();
+            if (row >= 0) {
+                String newStatus = (String) statusCombo.getSelectedItem();
+                updateSingleOrderStatus(activeOrdersTable, activeOrdersModel, row, newStatus, () -> {
+                    loadPage.run();  // Reload current page after update
+                });
+            } else {
+                JOptionPane.showMessageDialog(panel, "Please select an order first!");
+            }
+        });
+        updatePanel.add(updateBtn);
+
+        buttonPanel.add(updatePanel);
+
+        // Quick stats panel
+        JPanel statsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 5));
+        statsPanel.setBorder(BorderFactory.createTitledBorder("Quick Stats"));
+        JLabel pendingLabel = new JLabel("Pending: 0");
+        JLabel processingLabel = new JLabel("Processing: 0");
+        JLabel shippedLabel = new JLabel("Shipped: 0");
+        JLabel totalLabel = new JLabel("Total Active: 0");
+
+        pendingLabel.setFont(new Font("Arial", Font.BOLD, 12));
+        processingLabel.setFont(new Font("Arial", Font.BOLD, 12));
+        shippedLabel.setFont(new Font("Arial", Font.BOLD, 12));
+        totalLabel.setFont(new Font("Arial", Font.BOLD, 12));
+
+        pendingLabel.setForeground(new Color(255, 69, 58));
+        processingLabel.setForeground(new Color(255, 165, 0));
+        shippedLabel.setForeground(new Color(50, 205, 50));
+        totalLabel.setForeground(new Color(0, 102, 204));
+
+        statsPanel.add(pendingLabel);
+        statsPanel.add(processingLabel);
+        statsPanel.add(shippedLabel);
+        statsPanel.add(totalLabel);
+
+        // Combine all panels
+        JPanel southPanel = new JPanel(new BorderLayout());
+        southPanel.add(paginationPanel, BorderLayout.NORTH);
+        southPanel.add(buttonPanel, BorderLayout.CENTER);
+        southPanel.add(statsPanel, BorderLayout.SOUTH);
+        panel.add(southPanel, BorderLayout.SOUTH);
+
+        // Load initial data
+        loadPage.run();
+
+        // Add double-click to view details
+        activeOrdersTable.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    int row = activeOrdersTable.getSelectedRow();
+                    if (row >= 0 && row < activeOrdersModel.getRowCount()) {
+                        Object orderIdObj = activeOrdersModel.getValueAt(row, 0);
+                        if (orderIdObj instanceof Integer) {
+                            int orderId = (Integer) orderIdObj;
+                            showOrderDetails(orderId);
+                        }
+                    }
+                }
+            }
+        });
+
+        // Store references for updating stats
+        panel.putClientProperty("pendingLabel", pendingLabel);
+        panel.putClientProperty("processingLabel", processingLabel);
+        panel.putClientProperty("shippedLabel", shippedLabel);
+        panel.putClientProperty("totalLabel", totalLabel);
+        panel.putClientProperty("activeOrdersModel", activeOrdersModel);
+        panel.putClientProperty("activeOrdersTable", activeOrdersTable);
+        panel.putClientProperty("refreshPage", loadPage);
+
+        return panel;
+    }
+
+    private void loadActiveOrdersPaginated(DefaultTableModel model, int pageSize, int offset, 
+                                            int[] totalOrders, int[] totalPages) {
+        model.setRowCount(0);
+
+        // First, get total count for pagination
+        String countSql = "SELECT COUNT(*) as total FROM comenzi o " +
+                          "WHERE o.status IN ('pending', 'processing', 'shipped')";
+
+        try (Statement stmt = DatabaseConnection.getConnection().createStatement();
+             ResultSet countRs = stmt.executeQuery(countSql)) {
+
+            if (countRs.next()) {
+                totalOrders[0] = countRs.getInt("total");
+                totalPages[0] = (int) Math.ceil((double) totalOrders[0] / pageSize);
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            totalOrders[0] = 0;
+            totalPages[0] = 0;
+        }
+
+        // If no orders, show message
+        if (totalOrders[0] == 0) {
+            model.addRow(new Object[]{"", "No active orders", "", "", "", "", "", ""});
+            return;
+        }
+
+        // Now fetch paginated data
+        String sql = "SELECT o.id_comanda, c.nume, DATE(o.data_comanda) as order_date, o.status, " +
+                     "o.total, mp.nume as payment_method, " +
+                     "(SELECT COUNT(*) FROM detalii_comanda WHERE id_comanda = o.id_comanda) as items_count, " +
+                     "DATEDIFF(NOW(), o.data_comanda) as days_old " +
+                     "FROM comenzi o " +
+                     "JOIN clienti c ON o.id_client = c.id_client " +
+                     "JOIN metode_plata mp ON o.id_metoda_plata = mp.id_metoda " +
+                     "WHERE o.status IN ('pending', 'processing', 'shipped') " +
+                     "ORDER BY CASE o.status " +
+                     "    WHEN 'pending' THEN 1 " +
+                     "    WHEN 'processing' THEN 2 " +
+                     "    WHEN 'shipped' THEN 3 " +
+                     "    ELSE 4 END, o.data_comanda ASC " +
+                     "LIMIT ? OFFSET ?";
+
+        try (PreparedStatement pstmt = DatabaseConnection.getConnection().prepareStatement(sql)) {
+            pstmt.setInt(1, pageSize);
+            pstmt.setInt(2, offset);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                Object[] row = {
+                    rs.getInt("id_comanda"),
+                    rs.getString("nume"),
+                    rs.getString("order_date"),
+                    rs.getString("status"),
+                    rs.getDouble("total"),
+                    rs.getString("payment_method"),
+                    rs.getInt("items_count"),
+                    rs.getInt("days_old")
+                };
+                model.addRow(row);
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error loading active orders: " + e.getMessage());
+        }
+    }
+
+    private void updateProcessOrderStats(DefaultTableModel model, JPanel panel) {
+        int pending = 0, processing = 0, shipped = 0;
+
+        for (int i = 0; i < model.getRowCount(); i++) {
+            Object statusObj = model.getValueAt(i, 3);
+            if (statusObj instanceof String) {
+                String status = (String) statusObj;
+                if ("pending".equals(status)) pending++;
+                else if ("processing".equals(status)) processing++;
+                else if ("shipped".equals(status)) shipped++;
+            }
+        }
+
+        // Update labels
+        JLabel pendingLabel = (JLabel) panel.getClientProperty("pendingLabel");
+        JLabel processingLabel = (JLabel) panel.getClientProperty("processingLabel");
+        JLabel shippedLabel = (JLabel) panel.getClientProperty("shippedLabel");
+        JLabel totalLabel = (JLabel) panel.getClientProperty("totalLabel");
+
+        if (pendingLabel != null) pendingLabel.setText("Pending: " + pending);
+        if (processingLabel != null) processingLabel.setText("Processing: " + processing);
+        if (shippedLabel != null) shippedLabel.setText("Shipped: " + shipped);
+        if (totalLabel != null) totalLabel.setText("Total Active: " + (pending + processing + shipped));
+    }
+
+    private void updateOrderStatusBulk(JTable table, DefaultTableModel model, int row, String newStatus, Runnable onComplete) {
+        int orderId = (int) model.getValueAt(row, 0);
+        String currentStatus = (String) model.getValueAt(row, 3);
+
+        if (currentStatus.equals(newStatus)) {
+            JOptionPane.showMessageDialog(this, "Order is already " + newStatus + "!");
+            return;
+        }
+
+        try {
+            PreparedStatement stmt = DatabaseConnection.getConnection().prepareStatement(
+                "UPDATE comenzi SET status = ? WHERE id_comanda = ?");
+            stmt.setString(1, newStatus);
+            stmt.setInt(2, orderId);
+            int result = stmt.executeUpdate();
+
+            if (result > 0) {
+                JOptionPane.showMessageDialog(this, 
+                    "✅ Order #" + orderId + " marked as " + newStatus.toUpperCase() + "!");
+                if (onComplete != null) onComplete.run();
+                // Also refresh the regular orders tab
+                loadOrders();
+                loadDashboardStats();
+            }
+
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Error updating order: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void updateSingleOrderStatus(JTable table, DefaultTableModel model, int row, String newStatus, Runnable onComplete) {
+        int orderId = (int) model.getValueAt(row, 0);
+        String currentStatus = (String) model.getValueAt(row, 3);
+
+        if (currentStatus.equals(newStatus)) {
+            JOptionPane.showMessageDialog(this, "Order is already " + newStatus + "!");
+            return;
+        }
+
+        // Special confirmation for cancellation
+        if ("cancelled".equals(newStatus)) {
+            int confirm = JOptionPane.showConfirmDialog(this,
+                "Cancel Order #" + orderId + "?\nThis will log the cancellation in audit table.",
+                "Confirm Cancellation",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+            if (confirm != JOptionPane.YES_OPTION) {
+                return;
+            }
+        }
+
+        try {
+            PreparedStatement stmt = DatabaseConnection.getConnection().prepareStatement(
+                "UPDATE comenzi SET status = ? WHERE id_comanda = ?");
+            stmt.setString(1, newStatus);
+            stmt.setInt(2, orderId);
+            int result = stmt.executeUpdate();
+
+            if (result > 0) {
+                String message = "✅ Order #" + orderId + " updated from " + 
+                               currentStatus.toUpperCase() + " to " + newStatus.toUpperCase();
+                JOptionPane.showMessageDialog(this, message);
+                if (onComplete != null) onComplete.run();
+                loadOrders();
+                loadDashboardStats();
+            }
+
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Error updating order: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
     private void installProductTableSorting() {
         JTableHeader header = productsTable.getTableHeader();
         header.addMouseListener(new MouseAdapter() {
