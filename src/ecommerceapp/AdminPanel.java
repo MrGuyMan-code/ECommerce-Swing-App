@@ -45,8 +45,9 @@ public class AdminPanel extends JFrame {
         tabbedPane.addTab("📋 View Orders", createOrdersPanel());
         tabbedPane.addTab("➕ Add Product", createAddProductPanel());
         tabbedPane.addTab("✏️ Manage Products", createManageProductsPanel());
-        tabbedPane.addTab("⚡ Process Orders", createProcessOrdersPanel());  // ← ADD THIS LINE
-        tabbedPane.addTab("📁 Manage Categories", createCategoryPanel());  // ← NEW TAB
+        tabbedPane.addTab("⚡ Process Orders", createProcessOrdersPanel());
+        tabbedPane.addTab("📁 Manage Categories", createCategoryPanel());
+        tabbedPane.addTab("🤖 AI Analytics", createAIAnalyticsPanel());
         tabbedPane.addTab("📊 Dashboard", createDashboardPanel());
         
         add(tabbedPane);
@@ -589,6 +590,516 @@ public class AdminPanel extends JFrame {
         panel.putClientProperty("refreshPage", loadPage);
 
         return panel;
+    }
+    
+    private JPanel createAIAnalyticsPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // Title section
+        JPanel titlePanel = new JPanel(new BorderLayout());
+        JLabel titleLabel = new JLabel("🤖 AI Sales Insights & Analytics", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 18));
+        titleLabel.setForeground(new Color(128, 0, 128));
+        titlePanel.add(titleLabel, BorderLayout.NORTH);
+
+        JLabel subtitleLabel = new JLabel("Smart predictions and insights based on your sales data", SwingConstants.CENTER);
+        subtitleLabel.setFont(new Font("Arial", Font.ITALIC, 12));
+        titlePanel.add(subtitleLabel, BorderLayout.CENTER);
+        panel.add(titlePanel, BorderLayout.NORTH);
+
+        // Create tabbed pane for different AI insights
+        JTabbedPane insightsPane = new JTabbedPane();
+
+        // Tab 1: Sales Predictions & Trends
+        insightsPane.addTab("📈 Trends & Predictions", createTrendsPanel());
+
+        // Tab 2: Product Recommendations
+        insightsPane.addTab("🎯 Smart Recommendations", createRecommendationsPanel());
+
+        // Tab 3: Customer Insights
+        insightsPane.addTab("👥 Customer Insights", createCustomerInsightsPanel());
+
+        // Tab 4: Anomaly Detection
+        insightsPane.addTab("⚠️ Anomaly Detection", createAnomalyPanel());
+
+        panel.add(insightsPane, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private JPanel createTrendsPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // Refresh button
+        JButton refreshBtn = new JButton("🤖 Analyze Trends");
+        refreshBtn.setFont(new Font("Arial", Font.BOLD, 12));
+        refreshBtn.setBackground(new Color(128, 0, 128));
+        refreshBtn.setForeground(Color.BLACK);
+
+
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        topPanel.add(refreshBtn);
+        panel.add(topPanel, BorderLayout.NORTH);
+
+        // Results area
+        JTextArea resultsArea = new JTextArea();
+        resultsArea.setEditable(false);
+        resultsArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        resultsArea.setBackground(new Color(245, 245, 250));
+        JScrollPane scrollPane = new JScrollPane(resultsArea);
+        scrollPane.setPreferredSize(new Dimension(600, 400));
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        refreshBtn.addActionListener(e -> analyzeTrends(resultsArea));
+
+        // Load initial analysis
+        analyzeTrends(resultsArea);
+
+        return panel;
+    }
+
+    private JPanel createRecommendationsPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // Top sellers section
+        JPanel topSellersPanel = new JPanel(new BorderLayout());
+        topSellersPanel.setBorder(BorderFactory.createTitledBorder("🏆 Top Selling Products"));
+        JTextArea topSellersArea = new JTextArea(8, 40);
+        topSellersArea.setEditable(false);
+        topSellersArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        JScrollPane topScroll = new JScrollPane(topSellersArea);
+        topSellersPanel.add(topScroll, BorderLayout.CENTER);
+
+        // Recommendations section
+        JPanel recPanel = new JPanel(new BorderLayout());
+        recPanel.setBorder(BorderFactory.createTitledBorder("💡 AI Recommendations"));
+        JTextArea recArea = new JTextArea(8, 40);
+        recArea.setEditable(false);
+        recArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        JScrollPane recScroll = new JScrollPane(recArea);
+        recPanel.add(recScroll, BorderLayout.CENTER);
+
+        // Split pane
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, topSellersPanel, recPanel);
+        splitPane.setDividerLocation(250);
+        panel.add(splitPane, BorderLayout.CENTER);
+
+        // Refresh button
+        JButton refreshBtn = new JButton("🤖 Generate Recommendations");
+        refreshBtn.setFont(new Font("Arial", Font.BOLD, 12));
+        refreshBtn.setBackground(new Color(128, 0, 128));
+        refreshBtn.setForeground(Color.BLACK);
+        refreshBtn.addActionListener(e -> {
+            loadTopSellers(topSellersArea);
+            generateRecommendations(recArea);
+        });
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.add(refreshBtn);
+        panel.add(buttonPanel, BorderLayout.NORTH);
+
+        // Load initial data
+        loadTopSellers(topSellersArea);
+        generateRecommendations(recArea);
+
+        return panel;
+    }
+
+    private JPanel createCustomerInsightsPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        JTextArea insightsArea = new JTextArea();
+        insightsArea.setEditable(false);
+        insightsArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        insightsArea.setBackground(new Color(245, 245, 250));
+        JScrollPane scrollPane = new JScrollPane(insightsArea);
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        JButton refreshBtn = new JButton("🤖 Analyze Customers");
+        refreshBtn.setFont(new Font("Arial", Font.BOLD, 12));
+        refreshBtn.setBackground(new Color(128, 0, 128));
+        refreshBtn.setForeground(Color.BLACK);
+        refreshBtn.addActionListener(e -> analyzeCustomerInsights(insightsArea));
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.add(refreshBtn);
+        panel.add(buttonPanel, BorderLayout.NORTH);
+
+        analyzeCustomerInsights(insightsArea);
+
+        return panel;
+    }
+
+    private JPanel createAnomalyPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        JTextArea anomalyArea = new JTextArea();
+        anomalyArea.setEditable(false);
+        anomalyArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        anomalyArea.setBackground(new Color(245, 245, 250));
+        JScrollPane scrollPane = new JScrollPane(anomalyArea);
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        JButton refreshBtn = new JButton("🤖 Detect Anomalies");
+        refreshBtn.setFont(new Font("Arial", Font.BOLD, 12));
+        refreshBtn.setBackground(new Color(128, 0, 128));
+        refreshBtn.setForeground(Color.BLACK);
+        refreshBtn.addActionListener(e -> detectAnomalies(anomalyArea));
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.add(refreshBtn);
+        panel.add(buttonPanel, BorderLayout.NORTH);
+
+        detectAnomalies(anomalyArea);
+
+        return panel;
+    }
+
+    // ================ AI ANALYSIS METHODS ================
+
+    private void analyzeTrends(JTextArea resultsArea) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("🤖 AI TREND ANALYSIS REPORT\n");
+        sb.append("===============================================\n\n");
+
+        try {
+            // Get sales by month
+            String sql = "SELECT DATE_FORMAT(data_comanda, '%Y-%m') as month, " +
+                         "COUNT(*) as order_count, SUM(total) as revenue, " +
+                         "AVG(total) as avg_order_value " +
+                         "FROM comenzi WHERE status = 'delivered' " +
+                         "GROUP BY DATE_FORMAT(data_comanda, '%Y-%m') " +
+                         "ORDER BY month DESC LIMIT 6";
+
+            Statement stmt = DatabaseConnection.getConnection().createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+
+            java.util.ArrayList<String> months = new java.util.ArrayList<>();
+            java.util.ArrayList<Double> revenues = new java.util.ArrayList<>();
+
+            while (rs.next()) {
+                months.add(rs.getString("month"));
+                revenues.add(rs.getDouble("revenue"));
+            }
+
+            if (revenues.size() >= 2) {
+                // Calculate trend
+                double lastMonth = revenues.get(0);
+                double prevMonth = revenues.get(1);
+                double percentChange = ((lastMonth - prevMonth) / prevMonth) * 100;
+
+                sb.append("📊 SALES TREND ANALYSIS:\n");
+                sb.append("-----------------------------------------------\n");
+                if (percentChange > 0) {
+                    sb.append(String.format("✅ Revenue increased by %.1f%% compared to previous month\n", percentChange));
+                    sb.append("   📈 Positive growth trend detected!\n");
+                } else if (percentChange < 0) {
+                    sb.append(String.format("⚠️ Revenue decreased by %.1f%% compared to previous month\n", Math.abs(percentChange)));
+                    sb.append("   📉 Negative trend - consider promotions!\n");
+                } else {
+                    sb.append("➡️ Revenue stable compared to previous month\n");
+                }
+
+                // Predict next month
+                double avgGrowth = 0;
+                for (int i = 1; i < revenues.size(); i++) {
+                    avgGrowth += ((revenues.get(i-1) - revenues.get(i)) / revenues.get(i)) * 100;
+                }
+                avgGrowth = avgGrowth / (revenues.size() - 1);
+                double predictedRevenue = lastMonth * (1 + avgGrowth/100);
+
+                sb.append(String.format("\n🔮 PREDICTION:\n"));
+                sb.append(String.format("   Next month expected revenue: %.2f RON\n", predictedRevenue));
+                if (predictedRevenue > lastMonth) {
+                    sb.append("   🤖 AI predicts GROWTH next month 📈\n");
+                } else {
+                    sb.append("   🤖 AI predicts DECLINE next month - take action! 📉\n");
+                }
+            }
+
+            // Best selling hour analysis
+            rs = stmt.executeQuery("SELECT HOUR(data_comanda) as hour, COUNT(*) as orders " +
+                                   "FROM comenzi GROUP BY HOUR(data_comanda) ORDER BY orders DESC LIMIT 1");
+            if (rs.next()) {
+                sb.append("\n⏰ PEAK HOUR ANALYSIS:\n");
+                sb.append("-----------------------------------------------\n");
+                sb.append(String.format("   Most orders placed at: %d:00 (%d orders)\n", 
+                         rs.getInt("hour"), rs.getInt("orders")));
+                sb.append("   🤖 AI suggests running promotions during this hour!\n");
+            }
+
+            // Average order value trend
+            rs = stmt.executeQuery("SELECT AVG(total) as avg_total FROM comenzi WHERE status = 'delivered'");
+            if (rs.next()) {
+                sb.append("\n💰 AVERAGE ORDER VALUE:\n");
+                sb.append("-----------------------------------------------\n");
+                sb.append(String.format("   Overall average: %.2f RON\n", rs.getDouble("avg_total")));
+            }
+
+        } catch (SQLException e) {
+            sb.append("❌ Error analyzing trends: " + e.getMessage());
+        }
+
+        resultsArea.setText(sb.toString());
+    }
+
+    private void loadTopSellers(JTextArea area) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("📊 TOP 10 BEST SELLING PRODUCTS\n");
+        sb.append("===============================================\n\n");
+        sb.append(String.format("%-5s | %-30s | %-10s | %-10s\n", "Rank", "Product Name", "Units Sold", "Revenue"));
+        sb.append("------------------------------------------------------------------------\n");
+
+        try {
+            String sql = "SELECT p.id_produs, p.nume, SUM(dc.cantitate) as total_sold, " +
+                         "SUM(dc.cantitate * dc.pret_unitar) as revenue " +
+                         "FROM detalii_comanda dc " +
+                         "JOIN produse p ON dc.id_produs = p.id_produs " +
+                         "JOIN comenzi c ON dc.id_comanda = c.id_comanda " +
+                         "WHERE c.status = 'delivered' " +
+                         "GROUP BY p.id_produs, p.nume " +
+                         "ORDER BY total_sold DESC LIMIT 10";
+
+            Statement stmt = DatabaseConnection.getConnection().createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+
+            int rank = 1;
+            while (rs.next()) {
+                String name = rs.getString("nume");
+                if (name.length() > 28) name = name.substring(0, 25) + "...";
+                sb.append(String.format("%-5d | %-30s | %-10d | %-10.2f RON\n", 
+                         rank++, name, rs.getInt("total_sold"), rs.getDouble("revenue")));
+            }
+
+        } catch (SQLException e) {
+            sb.append("Error: " + e.getMessage());
+        }
+
+        area.setText(sb.toString());
+    }
+
+    private void generateRecommendations(JTextArea area) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("🤖 AI-POWERED RECOMMENDATIONS\n");
+        sb.append("===============================================\n\n");
+
+        try {
+            // Recommendation 1: Low stock alert
+            String sql = "SELECT COUNT(*) as low_stock FROM stocuri WHERE cantitate < 10";
+            Statement stmt = DatabaseConnection.getConnection().createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+            rs.next();
+            int lowStock = rs.getInt("low_stock");
+
+            if (lowStock > 0) {
+                sb.append("⚠️ INVENTORY ALERT:\n");
+                sb.append(String.format("   • %d products have LOW STOCK (<10 units)\n", lowStock));
+                sb.append("   • 🤖 AI recommends reordering these products immediately!\n\n");
+            }
+
+            // Recommendation 2: Identify stagnant products
+            sql = "SELECT COUNT(*) as stagnant FROM produse p " +
+                  "LEFT JOIN detalii_comanda dc ON p.id_produs = dc.id_produs " +
+                  "LEFT JOIN comenzi c ON dc.id_comanda = c.id_comanda AND c.status = 'delivered' " +
+                  "WHERE dc.id_detalii IS NULL GROUP BY p.id_produs";
+            rs = stmt.executeQuery(sql);
+            rs.next();
+            int stagnant = rs.getInt("stagnant");
+
+            if (stagnant > 0) {
+                sb.append("💡 PRODUCT PERFORMANCE:\n");
+                sb.append(String.format("   • %d products have NEVER been sold\n", stagnant));
+                sb.append("   • 🤖 AI suggests: Run promotions or consider discontinuing\n\n");
+            }
+
+            // Recommendation 3: Best category
+            sql = "SELECT c.nume, SUM(dc.cantitate) as sold " +
+                  "FROM categorii c " +
+                  "JOIN produse p ON c.id_categorie = p.id_categorie " +
+                  "JOIN detalii_comanda dc ON p.id_produs = dc.id_produs " +
+                  "JOIN comenzi co ON dc.id_comanda = co.id_comanda " +
+                  "WHERE co.status = 'delivered' " +
+                  "GROUP BY c.id_categorie ORDER BY sold DESC LIMIT 1";
+            rs = stmt.executeQuery(sql);
+
+            if (rs.next()) {
+                sb.append("🏆 TOP PERFORMING CATEGORY:\n");
+                sb.append(String.format("   • %s is your best-selling category!\n", rs.getString("nume")));
+                sb.append("   • 🤖 AI recommends expanding this category\n\n");
+            }
+
+            // Recommendation 4: Customer return rate
+            sql = "SELECT COUNT(DISTINCT id_client) as total_customers, " +
+                  "COUNT(DISTINCT CASE WHEN (SELECT COUNT(*) FROM comenzi c2 WHERE c2.id_client = c.id_client) > 1 THEN c.id_client END) as returning " +
+                  "FROM comenzi c";
+            rs = stmt.executeQuery(sql);
+            if (rs.next()) {
+                int total = rs.getInt("total_customers");
+                int returning = rs.getInt("returning");
+                double rate = total > 0 ? (returning * 100.0 / total) : 0;
+
+                sb.append("🔄 CUSTOMER LOYALTY:\n");
+                sb.append(String.format("   • Returning customer rate: %.1f%%\n", rate));
+                if (rate < 30) {
+                    sb.append("   • 🤖 AI suggests: Implement loyalty program!\n\n");
+                } else {
+                    sb.append("   • 🤖 Good customer retention! Keep it up!\n\n");
+                }
+            }
+
+        } catch (SQLException e) {
+            sb.append("Error generating recommendations: " + e.getMessage());
+        }
+
+        area.setText(sb.toString());
+    }
+
+    private void analyzeCustomerInsights(JTextArea area) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("👥 CUSTOMER BEHAVIOR ANALYSIS\n");
+        sb.append("===============================================\n\n");
+
+        try {
+            // Top customers
+            String sql = "SELECT c.nume, COUNT(o.id_comanda) as orders, SUM(o.total) as total_spent " +
+                         "FROM clienti c JOIN comenzi o ON c.id_client = o.id_client " +
+                         "WHERE o.status = 'delivered' " +
+                         "GROUP BY c.id_client ORDER BY total_spent DESC LIMIT 5";
+
+            Statement stmt = DatabaseConnection.getConnection().createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+
+            sb.append("🏆 VIP CUSTOMERS (Top 5 by spending):\n");
+            sb.append("-----------------------------------------------\n");
+            int rank = 1;
+            while (rs.next()) {
+                sb.append(String.format("%d. %-25s | %d orders | %.2f RON\n", 
+                         rank++, rs.getString("nume"), rs.getInt("orders"), rs.getDouble("total_spent")));
+            }
+
+            // Average customer lifetime value
+            sql = "SELECT AVG(total_spent) as avg_lifetime FROM " +
+                  "(SELECT SUM(total) as total_spent FROM comenzi WHERE status = 'delivered' GROUP BY id_client) as customer_totals";
+            rs = stmt.executeQuery(sql);
+            if (rs.next()) {
+                sb.append("\n💰 CUSTOMER LIFETIME VALUE (CLV):\n");
+                sb.append("-----------------------------------------------\n");
+                sb.append(String.format("   Average CLV: %.2f RON\n", rs.getDouble("avg_lifetime")));
+            }
+
+            // Order frequency
+            sql = "SELECT AVG(order_count) as avg_orders FROM " +
+                  "(SELECT COUNT(*) as order_count FROM comenzi GROUP BY id_client) as customer_orders";
+            rs = stmt.executeQuery(sql);
+            if (rs.next()) {
+                sb.append(String.format("   Average orders per customer: %.1f\n", rs.getDouble("avg_orders")));
+            }
+
+            // Customer distribution
+            sql = "SELECT COUNT(*) as one_time FROM (SELECT id_client, COUNT(*) as cnt FROM comenzi GROUP BY id_client HAVING cnt = 1) as t";
+            rs = stmt.executeQuery(sql);
+            if (rs.next()) {
+                int oneTime = rs.getInt("one_time");
+                sb.append(String.format("\n📊 CUSTOMER DISTRIBUTION:\n"));
+                sb.append("-----------------------------------------------\n");
+                sb.append(String.format("   • One-time buyers: %d\n", oneTime));
+                sb.append("   • 🤖 AI suggests: Target one-time buyers with special offers!\n");
+            }
+
+        } catch (SQLException e) {
+            sb.append("Error analyzing customers: " + e.getMessage());
+        }
+
+        area.setText(sb.toString());
+    }
+
+    private void detectAnomalies(JTextArea area) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("⚠️ ANOMALY DETECTION REPORT\n");
+        sb.append("===============================================\n\n");
+
+        try {
+            // Calculate statistics for order values
+            String sql = "SELECT total FROM comenzi WHERE status = 'delivered'";
+            Statement stmt = DatabaseConnection.getConnection().createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+
+            java.util.ArrayList<Double> orderValues = new java.util.ArrayList<>();
+            while (rs.next()) {
+                orderValues.add(rs.getDouble("total"));
+            }
+
+            if (orderValues.size() > 0) {
+                // Calculate mean and standard deviation
+                double mean = 0;
+                for (double v : orderValues) mean += v;
+                mean /= orderValues.size();
+
+                double variance = 0;
+                for (double v : orderValues) variance += Math.pow(v - mean, 2);
+                double stdDev = Math.sqrt(variance / orderValues.size());
+
+                // Find anomalies (orders > 2 standard deviations from mean)
+                sb.append("🔍 UNUSUALLY HIGH VALUE ORDERS:\n");
+                sb.append("-----------------------------------------------\n");
+                boolean found = false;
+                for (int i = 0; i < Math.min(orderValues.size(), 20); i++) {
+                    if (orderValues.get(i) > mean + 2 * stdDev) {
+                        sb.append(String.format("   • Order #%d: %.2f RON (%.1f std dev above mean)\n", 
+                                 i+1, orderValues.get(i), (orderValues.get(i) - mean) / stdDev));
+                        found = true;
+                    }
+                }
+                if (!found) {
+                    sb.append("   No unusually high value orders detected.\n");
+                }
+
+                sb.append("\n📊 STATISTICAL SUMMARY:\n");
+                sb.append("-----------------------------------------------\n");
+                sb.append(String.format("   Mean order value: %.2f RON\n", mean));
+                sb.append(String.format("   Standard deviation: %.2f RON\n", stdDev));
+            }
+
+            // Detect unusual status patterns
+            sql = "SELECT status, COUNT(*) as count FROM comenzi GROUP BY status";
+            rs = stmt.executeQuery(sql);
+
+            sb.append("\n🔄 ORDER STATUS DISTRIBUTION:\n");
+            sb.append("-----------------------------------------------\n");
+            while (rs.next()) {
+                String status = rs.getString("status");
+                int count = rs.getInt("count");
+                sb.append(String.format("   • %s: %d orders (%.1f%%)\n", 
+                         status, count, (count * 100.0 / orderValues.size())));
+            }
+
+            // Alert for high cancellation rate
+            sql = "SELECT COUNT(*) as cancelled FROM comenzi WHERE status = 'cancelled'";
+            rs = stmt.executeQuery(sql);
+            rs.next();
+            int cancelled = rs.getInt("cancelled");
+            double cancelRate = (cancelled * 100.0 / orderValues.size());
+
+            if (cancelRate > 15) {
+                sb.append("\n🚨 AI ALERT:\n");
+                sb.append("-----------------------------------------------\n");
+                sb.append(String.format("   High cancellation rate detected: %.1f%%\n", cancelRate));
+                sb.append("   🤖 Investigate potential issues with:\n");
+                sb.append("      - Payment processing\n");
+                sb.append("      - Delivery times\n");
+                sb.append("      - Product quality\n");
+            }
+
+        } catch (SQLException e) {
+            sb.append("Error detecting anomalies: " + e.getMessage());
+        }
+
+        area.setText(sb.toString());
     }
 
     private void loadActiveOrdersPaginated(DefaultTableModel model, int pageSize, int offset, 
